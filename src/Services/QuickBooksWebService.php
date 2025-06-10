@@ -3,6 +3,7 @@
 namespace ShubhKansara\PhpQuickbooksConnector\Services;
 
 use Illuminate\Support\Facades\Log;
+use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksEntitySynced;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncSession;
 use SoapVar;
 use ShubhKansara\PhpQuickbooksConnector\Services\QuickBooksDesktopConnector;
@@ -207,13 +208,7 @@ class QuickBooksWebService
                 $entity = substr($tag, 0, -7);
                 $retTag = "{$entity}Ret";
 
-                $repoInt = "App\\Interfaces\\QuickBooks\\{$entity}RepositoryInterface";
-                if (! interface_exists($repoInt)) {
-                    event(new QuickBooksLogEvent('warning', "No repository for QuickBooks entity {$entity}"));
-                    continue;
-                }
-                $repo = app($repoInt);
-
+                $records = [];
                 foreach ($rsNode->$retTag ?? [] as $ret) {
                     $data = [];
                     foreach ($ret->children() as $child) {
@@ -221,12 +216,15 @@ class QuickBooksWebService
                         if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
                         $data[$name] = (string)$child;
                     }
-                    $data['MetaData'] = (object)[
+                    $data['MetaData'] = [
                         'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
                         'LastUpdatedTime' => (string)($ret->TimeModified ?? ''),
                     ];
-                    $repo->createOrUpdateFromQuickBooks($data);
+                    $records[] = $data;
                 }
+
+                // Fire the dynamic event for any entity
+                event(new QuickBooksEntitySynced($entity, $records));
 
                 // --- Mark the job as processed for Query jobs ---
                 $job = QbSyncQueue

@@ -1,0 +1,15 @@
+<?php
+// HandleQuickBooksEntitySync.stub
+
+namespace App\Listeners;
+
+use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksEntitySynced;
+
+class HandleQuickBooksItemsSync
+{
+    public function handle(QuickBooksEntitySynced $event)
+    {
+        // Your logic here
+
+    }
+}
