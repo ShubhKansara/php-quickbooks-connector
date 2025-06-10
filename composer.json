@@ -1,0 +1,26 @@
+{
+    "name": "shubh-kansara/php-quickbooks-connector",
+    "description": "Laravel QBWC connector package",
+    "require": {
+        "php": ">=7.4"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "ShubhKansara\\PhpQuickbooksConnector\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Shubh kansara",
+            "email": "shubh.k.kansara@gmail.com"
+        }
+    ],
+    "extra": {
+    "laravel": {
+      "providers": [
+        "ShubhKansara\\PhpQuickbooksConnector\\QuickBooksConnectorServiceProvider"
+      ]
+    }
+  }
+}
