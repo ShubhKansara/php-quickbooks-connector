@@ -32,6 +32,7 @@ class QuickBooksConnectorServiceProvider extends ServiceProvider
 
         $this->publishes([
             __DIR__ . '/../stubs/Listeners/HandleQuickBooksEntitySync.stub' => app_path('Listeners/HandleQuickBooksEntitySync.php'),
+            __DIR__ . '/../stubs/Providers/QuickBooksConnectorEventServiceProvider.stub' => app_path('Providers/QuickBooksConnectorEventServiceProvider.php'),
         ], 'php-quickbooks-listeners');
 
 

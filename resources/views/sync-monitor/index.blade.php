@@ -9,8 +9,8 @@
                 <option value="">All Statuses</option>
                 <option value="pending" {{ $status == 'pending' ? 'selected' : '' }}>Pending</option>
                 <option value="processing" {{ $status == 'processing' ? 'selected' : '' }}>Processing</option>
-                <option value="success" {{ $status == 'success' ? 'selected' : '' }}>Success</option>
-                <option value="failed" {{ $status == 'failed' ? 'selected' : '' }}>Failed</option>
+                <option value="completed" {{ $status == 'completed' ? 'selected' : '' }}>Completed</option>
+                <option value="error" {{ $status == 'error' ? 'selected' : '' }}>Failed</option>
             </select>
         </form>
         <table class="table table-bordered">

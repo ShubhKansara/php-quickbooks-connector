@@ -5,7 +5,7 @@ namespace App\Listeners;
 
 use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksEntitySynced;
 
-class HandleQuickBooksItemsSync
+class HandleQuickBooksEntitySync
 {
     public function handle(QuickBooksEntitySynced $event)
     {

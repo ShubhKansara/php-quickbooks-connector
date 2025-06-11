@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QuickBooksController;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncMonitorController;
+use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QbEntityController;
 
 Route::get('qbwc', function () {
     // Serve the WSDL file
@@ -19,4 +20,9 @@ Route::prefix('admin/quickbooks/sync-monitor')->group(function () {
     Route::get('/logs', [\ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncLogController::class, 'index'])
         ->name('qb.sync.monitor.logs');
     Route::get('/{id}', [SyncMonitorController::class, 'show'])->name('qb.sync.monitor.show');
+});
+
+Route::prefix('admin/quickbooks')->group(function () {
+    Route::resource('qb-entities', QbEntityController::class);
+    Route::get('qb-entities/{qb_entity}/edit', [QbEntityController::class, 'edit'])->name('qb-entities.edit');
 });
