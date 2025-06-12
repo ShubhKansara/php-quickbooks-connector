@@ -195,7 +195,9 @@ class QuickBooksWebService
                 return 100;
             }
 
-            event(new QuickBooksLogEvent('info', '[Step] Successfully parsed XML from QuickBooks.'));
+            event(new QuickBooksLogEvent('info', '[Step] Successfully parsed XML from QuickBooks.', [
+                'raw_xml' => $response, // Log the raw XML string for debugging
+            ]));
 
             foreach ($xml->QBXMLMsgsRs->children() as $rsNode) {
                 $tag = $rsNode->getName();
@@ -240,7 +242,13 @@ class QuickBooksWebService
                         foreach ($ret->children() as $child) {
                             $name = $child->getName();
                             if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
-                            $data[$name] = (string)$child;
+                            // OLD: $data[$name] = (string)$child;
+                            // NEW:
+                            if ($child->count() > 0) {
+                                $data[$name] = $this->parseXmlNode($child);
+                            } else {
+                                $data[$name] = (string)$child;
+                            }
                         }
                         $data['MetaData'] = [
                             'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
@@ -333,5 +341,21 @@ class QuickBooksWebService
             event(new QuickBooksLogEvent('error', '[Error] closeConnection step failed', ['exception' => $e->getMessage()]));
             return ['closeConnectionResult' => 'Error'];
         }
+    }
+
+    // Add this helper function inside your class (or as a private static function)
+    private function parseXmlNode($node)
+    {
+        $result = [];
+        foreach ($node->children() as $child) {
+            $name = $child->getName();
+            if ($child->count() > 0) {
+                // Recursively parse child nodes
+                $result[$name] = $this->parseXmlNode($child);
+            } else {
+                $result[$name] = (string)$child;
+            }
+        }
+        return $result;
     }
 }

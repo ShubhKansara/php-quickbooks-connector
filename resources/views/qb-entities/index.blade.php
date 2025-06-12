@@ -1,35 +1,36 @@
 @extends('php-quickbooks::layouts.app')
 @section('content')
-<h2>QuickBooks Entities</h2>
-<a href="{{ route('qb-entities.create') }}" class="btn btn-primary mb-3">Add Entity</a>
-<table class="table table-bordered">
+<h2 class="text-2xl font-bold mb-4">QuickBooks Entities</h2>
+<a href="{{ url('/admin/quickbooks') }}" class="inline-block mb-4 text-blue-600 hover:underline">&larr; Back to Dashboard</a>
+<a href="{{ route('qb-entities.create') }}" class="inline-block mb-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Entity</a>
+<div class="overflow-x-auto">
+<table class="min-w-full bg-white rounded shadow">
     <thead>
-        <tr>
-            <th>Name</th>
-            <th>Active</th>
-            <th>Actions</th>
-            <th>Entity Actions</th>
-            <th></th>
+        <tr class="bg-gray-100 text-left">
+            <th class="py-2 px-4">Name</th>
+            <th class="py-2 px-4">Active</th>
+            <th class="py-2 px-4">Actions</th>
+            <th class="py-2 px-4">Entity Actions</th>
         </tr>
     </thead>
     <tbody>
         @foreach($entities as $entity)
-            <tr>
-                <td>{{ $entity->name }}</td>
-                <td>{{ $entity->active ? 'Yes' : 'No' }}</td>
-                <td>
-                    <a href="{{ route('qb-entities.edit', ['qb_entity' => $entity->id]) }}" class="btn btn-sm btn-warning">Edit</a>
-                    <form action="{{ route('qb-entities.destroy', ['qb_entity' => $entity->id]) }}" method="POST" style="display:inline;">
+            <tr class="border-b">
+                <td class="py-2 px-4">{{ $entity->name }}</td>
+                <td class="py-2 px-4">{{ $entity->active ? 'Yes' : 'No' }}</td>
+                <td class="py-2 px-4">
+                    <a href="{{ route('qb-entities.edit', ['qb_entity' => $entity->id]) }}" class="text-yellow-600 hover:underline">Edit</a>
+                    <form action="{{ route('qb-entities.destroy', ['qb_entity' => $entity->id]) }}" method="POST" class="inline">
                         @csrf
                         @method('DELETE')
-                        <button class="btn btn-sm btn-danger" onclick="return confirm('Delete this entity and all actions?')">Delete</button>
+                        <button class="text-red-600 hover:underline ml-2" onclick="return confirm('Delete this entity and all actions?')">Delete</button>
                     </form>
                 </td>
-                <td>
+                <td class="py-2 px-4">
                     @foreach($entity->actions as $action)
-                        <div>
-                            <strong>{{ $action->action }}</strong>
-                            ({{ $action->active ? 'Active' : 'Inactive' }})
+                        <div class="mb-1">
+                            <span class="font-semibold">{{ $action->action }}</span>
+                            <span class="text-xs text-gray-500">({{ $action->active ? 'Active' : 'Inactive' }})</span>
                         </div>
                     @endforeach
                 </td>
@@ -37,5 +38,8 @@
         @endforeach
     </tbody>
 </table>
-{{ $entities->links() }}
+</div>
+<div class="mt-4">
+    {{ $entities->links() }}
+</div>
 @endsection

@@ -23,6 +23,9 @@ Route::prefix('admin/quickbooks/sync-monitor')->group(function () {
 });
 
 Route::prefix('admin/quickbooks')->group(function () {
+    Route::get('/', function () {
+        return view('php-quickbooks::admin.dashboard');
+    })->name('qb.admin.dashboard');
     Route::resource('qb-entities', QbEntityController::class);
     Route::get('qb-entities/{qb_entity}/edit', [QbEntityController::class, 'edit'])->name('qb-entities.edit');
 });

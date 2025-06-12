@@ -4,8 +4,9 @@ namespace ShubhKansara\PhpQuickbooksConnector\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Log;
 use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
+use ShubhKansara\PhpQuickbooksConnector\Services\QuickBooksWebService;
+use SoapServer;
 
 class QuickBooksController extends Controller
 {
@@ -22,11 +23,11 @@ class QuickBooksController extends Controller
         // 2) dispatch to your SOAP service
         $wsdl = __DIR__ . '/../../Wsdl/QuickBooksConnector.wsdl';
 
-        $server = new \SoapServer($wsdl, [
+        $server = new SoapServer($wsdl, [
             'cache_wsdl' => WSDL_CACHE_NONE,
             'exceptions' => true,
         ]);
-        $server->setClass(\ShubhKansara\PhpQuickbooksConnector\Services\QuickBooksWebService::class);
+        $server->setClass(QuickBooksWebService::class);
 
         ob_start();
         $server->handle();
