@@ -211,23 +211,25 @@ class QuickBooksWebService
             foreach ($xml->QBXMLMsgsRs->children() as $rsNode) {
                 $tag = $rsNode->getName();
 
-                // ——— Push responses (AddRs) ———
-                if (str_ends_with($tag, 'AddRs')) {
-                    event(new QuickBooksLogEvent('info', "[Step] Processing AddRs (push) response for $tag..."));
+                // Get status attributes
+                $statusCode = (string)($rsNode['statusCode'] ?? '');
+                $statusSeverity = (string)($rsNode['statusSeverity'] ?? '');
+                $statusMessage = (string)($rsNode['statusMessage'] ?? '');
+
+                // ——— Push responses (AddRs/ModRs) ———
+                if (str_ends_with($tag, 'AddRs') || str_ends_with($tag, 'ModRs')) {
+                    event(new QuickBooksLogEvent('info', "[Step] Processing {$tag} (push) response..."));
                     $job = QbSyncQueue::where('status', 'processing')->oldest('processed_at')->first();
 
                     $entity = substr($tag, 0, -5);
 
-
                     $records = [];
                     foreach ($rsNode->children() as $ret) {
-                        if (!str_ends_with($ret->getName(), 'Ret')) continue; // Only process *Ret nodes
+                        if (!str_ends_with($ret->getName(), 'Ret')) continue;
                         $data = [];
                         foreach ($ret->children() as $child) {
                             $name = $child->getName();
                             if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
-                            // OLD: $data[$name] = (string)$child;
-                            // NEW:
                             if ($child->count() > 0) {
                                 $data[$name] = $this->parseXmlNode($child);
                             } else {
@@ -238,7 +240,7 @@ class QuickBooksWebService
                             'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
                             'LastUpdatedTime' => (string)($ret->TimeModified ?? ''),
                         ];
-                        $data['QBType'] = $ret->getName(); // Optionally add the type
+                        $data['QBType'] = $ret->getName();
                         $records[] = $data;
                     }
                     event(new QuickBooksEntitySynced($entity, $records));
@@ -248,10 +250,57 @@ class QuickBooksWebService
                         'sample' => $records[0] ?? null,
                     ]));
 
-                    // --- Mark the job as processed for Query jobs ---
+                    // --- Mark the job as processed or failed based on status code ---
                     $job = QbSyncQueue::where('status', 'processing')->oldest('processed_at')->first();
                     if ($job) {
-                        $sync->markProcessed($job, true, json_encode($records));
+                        if ($statusSeverity === 'Error' || (int)$statusCode >= 3000) {
+                            // Log the error event
+                            event(new QuickBooksLogEvent(
+                                'error',
+                                "[QuickBooks Error] {$statusMessage}",
+                                [
+                                    'entity' => $entity,
+                                    'job_id' => $job->id,
+                                    'statusCode' => $statusCode,
+                                    'statusSeverity' => $statusSeverity,
+                                    'statusMessage' => $statusMessage,
+                                    'response' => $rsNode->asXML(),
+                                ]
+                            ));
+
+                            // --- Handle EditSequence out-of-date error ---
+                            if (stripos($statusMessage, 'edit sequence') !== false && stripos($statusMessage, 'out-of-date') !== false) {
+                                // Get the latest EditSequence from the response
+                                foreach ($rsNode->children() as $ret) {
+                                    if (!str_ends_with($ret->getName(), 'Ret')) continue;
+                                    $latestEditSequence = (string)($ret->EditSequence ?? null);
+                                    if ($latestEditSequence) {
+                                        // Update the job's payload with the new EditSequence
+                                        $payload = $job->payload;
+                                        $payload['EditSequence'] = $latestEditSequence;
+                                        // Optionally update other fields from $ret as needed
+
+                                        $job->payload = $payload;
+                                        $job->status = 'pending'; // Mark as pending for retry
+                                        $job->save();
+
+                                        event(new QuickBooksLogEvent(
+                                            'info',
+                                            "[QuickBooks] Updated job payload with latest EditSequence and set to pending.",
+                                            [
+                                                'job_id' => $job->id,
+                                                'new_EditSequence' => $latestEditSequence,
+                                            ]
+                                        ));
+                                    }
+                                }
+                            } else {
+                                // For other errors, mark as failed
+                                $sync->markProcessed($job, false, $statusMessage ?: 'QuickBooks error');
+                            }
+                        } else {
+                            $sync->markProcessed($job, true, json_encode($records));
+                        }
                     }
 
                     $session = QbSyncSession::first();
