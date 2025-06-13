@@ -1,11 +1,12 @@
 <?php
+
 namespace ShubhKansara\PhpQuickbooksConnector\Contracts;
 
 interface QuickBooksProviderInterface
 {
-    /**  
-     * Fetch everything your sync job expects, as an array of associative-data.  
-     * You can pass filters (e.g. modified-since) if you like.  
+    /**
+     * Fetch everything your sync job expects, as an array of associative-data.
+     * You can pass filters (e.g. modified-since) if you like.
      */
     public function fetchItems(array $filters = []): array;
 

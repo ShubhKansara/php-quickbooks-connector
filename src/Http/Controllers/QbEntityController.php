@@ -2,18 +2,19 @@
 
 namespace ShubhKansara\PhpQuickbooksConnector\Http\Controllers;
 
-use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbEntity;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbEntityAction;
+use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use ShubhKansara\PhpQuickbooksConnector\Models\QbEntity;
+use ShubhKansara\PhpQuickbooksConnector\Models\QbEntityAction;
 
 class QbEntityController extends Controller
 {
     public function index()
     {
         $entities = QbEntity::with('actions')->paginate(20);
+
         return view('php-quickbooks::qb-entities.index', compact('entities'));
     }
 
@@ -44,12 +45,14 @@ class QbEntityController extends Controller
             $this->upsertActions($entity, $request->actions);
 
             DB::commit();
+
             return redirect()->route('qb-entities.index')->with('success', 'Entity and actions added!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->validator)->withInput();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error creating QB Entity: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Error creating QB Entity: '.$e->getMessage(), ['exception' => $e]);
+
             return back()->with('error', 'An error occurred while creating the entity.')->withInput();
         }
     }
@@ -57,6 +60,7 @@ class QbEntityController extends Controller
     public function edit($id)
     {
         $qbEntity = QbEntity::with('actions')->findOrFail($id);
+
         return view('php-quickbooks::qb-entities.edit', compact('qbEntity'));
     }
 
@@ -77,12 +81,14 @@ class QbEntityController extends Controller
             $this->upsertActions($qbEntity, $request->actions);
 
             DB::commit();
+
             return redirect()->route('qb-entities.index')->with('success', 'Entity and actions updated!');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->validator)->withInput();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error updating QB Entity: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Error updating QB Entity: '.$e->getMessage(), ['exception' => $e]);
+
             return back()->with('error', 'An error occurred while updating the entity.')->withInput();
         }
     }
@@ -95,10 +101,12 @@ class QbEntityController extends Controller
             $qbEntity->actions()->delete();
             $qbEntity->delete();
             DB::commit();
+
             return redirect()->route('qb-entities.index')->with('success', 'Entity and its actions deleted!');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error deleting QB Entity: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Error deleting QB Entity: '.$e->getMessage(), ['exception' => $e]);
+
             return back()->with('error', 'An error occurred while deleting the entity.');
         }
     }
@@ -106,11 +114,11 @@ class QbEntityController extends Controller
     private function upsertActions($qbEntity, $actions)
     {
         $existingActionIds = $qbEntity->actions->pluck('id')->toArray();
-        $submittedActionIds = collect($actions)->pluck('id')->filter()->map(fn($id) => (int)$id)->toArray();
+        $submittedActionIds = collect($actions)->pluck('id')->filter()->map(fn ($id) => (int) $id)->toArray();
 
         // Delete removed actions
         $toDelete = array_diff($existingActionIds, $submittedActionIds);
-        if (!empty($toDelete)) {
+        if (! empty($toDelete)) {
             QbEntityAction::whereIn('id', $toDelete)->delete();
         }
 
@@ -121,9 +129,9 @@ class QbEntityController extends Controller
                 'request_template' => $actionData['request_template'],
                 'response_fields' => isset($actionData['response_fields']) ? json_decode($actionData['response_fields'], true) : null,
                 'handler_class' => $actionData['handler_class'] ?? null,
-                'active' => isset($actionData['active']) ? (bool)$actionData['active'] : true,
+                'active' => isset($actionData['active']) ? (bool) $actionData['active'] : true,
             ];
-            if (!empty($actionData['id'])) {
+            if (! empty($actionData['id'])) {
                 QbEntityAction::where('qb_entity_id', $qbEntity->id)
                     ->where('id', $actionData['id'])
                     ->update($fields);
@@ -136,7 +144,7 @@ class QbEntityController extends Controller
     private function entityValidationRules($entityId = null)
     {
         return [
-            'name' => 'required|unique:qb_entities,name' . ($entityId ? ',' . $entityId : ''),
+            'name' => 'required|unique:qb_entities,name'.($entityId ? ','.$entityId : ''),
             'actions' => 'required|array|min:1',
             'actions.*.id' => 'nullable|integer',
             'actions.*.action' => 'required|string',
@@ -148,16 +156,16 @@ class QbEntityController extends Controller
 
     private function generateHandlerClass($entityName, $action)
     {
-        $className = ucfirst($action) . ucfirst($entityName) . 'Handler';
+        $className = ucfirst($action).ucfirst($entityName).'Handler';
         $namespace = 'App\\QuickBooks\\Handlers';
-        $fullClass = $namespace . '\\' . $className;
+        $fullClass = $namespace.'\\'.$className;
         $path = app_path("QuickBooks/Handlers/{$className}.php");
 
-        if (!file_exists(dirname($path))) {
+        if (! file_exists(dirname($path))) {
             mkdir(dirname($path), 0755, true);
         }
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             $stub = <<<PHP
 <?php
 

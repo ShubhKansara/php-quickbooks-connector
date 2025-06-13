@@ -2,17 +2,14 @@
 
 namespace ShubhKansara\PhpQuickbooksConnector\Services;
 
-use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksEntitySynced;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncSession;
-use ShubhKansara\PhpQuickbooksConnector\Services\QuickBooksDesktopConnector;
-use ShubhKansara\PhpQuickbooksConnector\Services\SyncManager;
-use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbEntity;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Log;
-use SoapVar;
+use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksEntitySynced;
+use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbEntityAction;
+use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
+use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncSession;
+use SoapVar;
 
 class QuickBooksWebService
 {
@@ -20,9 +17,11 @@ class QuickBooksWebService
     {
         try {
             event(new QuickBooksLogEvent('info', '[Step] Checking server version...'));
+
             return ['serverVersionResult' => '1.0.0'];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] Server version check failed', ['exception' => $e->getMessage()]));
+
             return ['serverVersionResult' => 'Error'];
         }
     }
@@ -31,9 +30,11 @@ class QuickBooksWebService
     {
         try {
             event(new QuickBooksLogEvent('info', '[Step] Checking client (Web Connector) version...'));
+
             return ['clientVersionResult' => ''];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] Client version check failed', ['exception' => $e->getMessage()]));
+
             return ['clientVersionResult' => 'Error'];
         }
     }
@@ -44,10 +45,11 @@ class QuickBooksWebService
             event(new QuickBooksLogEvent('info', '[Step] Authenticating QuickBooks Web Connector...'));
             if (env('QB_MODE') !== 'desktop') {
                 event(new QuickBooksLogEvent('warning', '[Warning] QuickBooks Desktop integration is disabled'));
+
                 return [
                     'authenticateResult' => [
-                        'string' => ['QuickBooks Desktop integration is disabled']
-                    ]
+                        'string' => ['QuickBooks Desktop integration is disabled'],
+                    ],
                 ];
             }
 
@@ -59,25 +61,28 @@ class QuickBooksWebService
             if ($user === $configUsername && $pass === $configPassword) {
                 $ticket = session()->getId();
                 event(new QuickBooksLogEvent('info', '[Success] Authentication successful', ['user' => $user]));
+
                 return [
                     'authenticateResult' => [
-                        'string' => [$ticket, '']
-                    ]
+                        'string' => [$ticket, ''],
+                    ],
                 ];
             }
 
             event(new QuickBooksLogEvent('warning', '[Warning] Authentication failed', ['username' => $user]));
+
             return [
                 'authenticateResult' => [
-                    'string' => ['nvu']
-                ]
+                    'string' => ['nvu'],
+                ],
             ];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] Authentication step failed', ['exception' => $e->getMessage()]));
+
             return [
                 'authenticateResult' => [
-                    'string' => ['error']
-                ]
+                    'string' => ['error'],
+                ],
             ];
         }
     }
@@ -94,6 +99,7 @@ class QuickBooksWebService
                 <sendRequestXMLResult>QuickBooks Desktop integration is disabled</sendRequestXMLResult>
                 </sendRequestXMLResponse>
                 EOX;
+
                 return new \SoapVar($disabled, XSD_ANYXML);
             }
 
@@ -146,11 +152,12 @@ class QuickBooksWebService
 
             // 2) Otherwise fallback to your pull logic (ItemQueryRq / CustomerQueryRq, etc.)
             event(new QuickBooksLogEvent('info', '[Step] No pending jobs. Sending empty response to QuickBooks.'));
-            $done = <<<EOX
+            $done = <<<'EOX'
             <sendRequestXMLResponse xmlns="http://developer.intuit.com/">
               <sendRequestXMLResult></sendRequestXMLResult>
             </sendRequestXMLResponse>
             EOX;
+
             return new SoapVar($done, XSD_ANYXML);
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] sendRequestXML failed', ['exception' => $e->getMessage()]));
@@ -159,6 +166,7 @@ class QuickBooksWebService
               <sendRequestXMLResult>Error: {$e->getMessage()}</sendRequestXMLResult>
             </sendRequestXMLResponse>
             EOX;
+
             return new SoapVar($errorXml, XSD_ANYXML);
         }
     }
@@ -170,15 +178,16 @@ class QuickBooksWebService
 
             if (config('php-quickbooks.mode') !== 'desktop') {
                 event(new QuickBooksLogEvent('warning', '[Warning] Desktop integration is disabled'));
+
                 return 100;
             }
 
-            $ticket   = $req->ticket   ?? null;
+            $ticket = $req->ticket ?? null;
             $response = trim($req->response ?? '');
-            $hresult  = $req->hresult  ?? null;
-            $message  = $req->message  ?? null;
+            $hresult = $req->hresult ?? null;
+            $message = $req->message ?? null;
 
-            $sync     = app(SyncManager::class);
+            $sync = app(SyncManager::class);
             $connector = app(QuickBooksDesktopConnector::class);
 
             // 1) Handle transport-level errors
@@ -188,19 +197,22 @@ class QuickBooksWebService
                 if ($job) {
                     $sync->markProcessed($job, false, $message);
                 }
+
                 return 100;
             }
 
             if (empty($response)) {
                 event(new QuickBooksLogEvent('warning', '[Warning] Received empty response from QuickBooks.', compact('ticket')));
+
                 return 100;
             }
 
             libxml_use_internal_errors(true);
             $xml = simplexml_load_string($response);
             if (! $xml) {
-                $errs = array_map(fn($e) => $e->message, libxml_get_errors());
+                $errs = array_map(fn ($e) => $e->message, libxml_get_errors());
                 event(new QuickBooksLogEvent('error', '[Error] Failed to parse XML from QuickBooks.', ['errors' => $errs, 'xml' => $response]));
+
                 return 100;
             }
 
@@ -212,9 +224,9 @@ class QuickBooksWebService
                 $tag = $rsNode->getName();
 
                 // Get status attributes
-                $statusCode = (string)($rsNode['statusCode'] ?? '');
-                $statusSeverity = (string)($rsNode['statusSeverity'] ?? '');
-                $statusMessage = (string)($rsNode['statusMessage'] ?? '');
+                $statusCode = (string) ($rsNode['statusCode'] ?? '');
+                $statusSeverity = (string) ($rsNode['statusSeverity'] ?? '');
+                $statusMessage = (string) ($rsNode['statusMessage'] ?? '');
 
                 // ——— Push responses (AddRs/ModRs) ———
                 if (str_ends_with($tag, 'AddRs') || str_ends_with($tag, 'ModRs')) {
@@ -225,20 +237,24 @@ class QuickBooksWebService
 
                     $records = [];
                     foreach ($rsNode->children() as $ret) {
-                        if (!str_ends_with($ret->getName(), 'Ret')) continue;
+                        if (! str_ends_with($ret->getName(), 'Ret')) {
+                            continue;
+                        }
                         $data = [];
                         foreach ($ret->children() as $child) {
                             $name = $child->getName();
-                            if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
+                            if (in_array($name, ['TimeCreated', 'TimeModified'])) {
+                                continue;
+                            }
                             if ($child->count() > 0) {
                                 $data[$name] = $this->parseXmlNode($child);
                             } else {
-                                $data[$name] = (string)$child;
+                                $data[$name] = (string) $child;
                             }
                         }
                         $data['MetaData'] = [
-                            'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
-                            'LastUpdatedTime' => (string)($ret->TimeModified ?? ''),
+                            'CreateTime' => (string) ($ret->TimeCreated ?? ''),
+                            'LastUpdatedTime' => (string) ($ret->TimeModified ?? ''),
                         ];
                         $data['QBType'] = $ret->getName();
                         $records[] = $data;
@@ -253,7 +269,7 @@ class QuickBooksWebService
                     // --- Mark the job as processed or failed based on status code ---
                     $job = QbSyncQueue::where('status', 'processing')->oldest('processed_at')->first();
                     if ($job) {
-                        if ($statusSeverity === 'Error' || (int)$statusCode >= 3000) {
+                        if ($statusSeverity === 'Error' || (int) $statusCode >= 3000) {
                             // Log the error event
                             event(new QuickBooksLogEvent(
                                 'error',
@@ -272,8 +288,10 @@ class QuickBooksWebService
                             if (stripos($statusMessage, 'edit sequence') !== false && stripos($statusMessage, 'out-of-date') !== false) {
                                 // Get the latest EditSequence from the response
                                 foreach ($rsNode->children() as $ret) {
-                                    if (!str_ends_with($ret->getName(), 'Ret')) continue;
-                                    $latestEditSequence = (string)($ret->EditSequence ?? null);
+                                    if (! str_ends_with($ret->getName(), 'Ret')) {
+                                        continue;
+                                    }
+                                    $latestEditSequence = (string) ($ret->EditSequence ?? null);
                                     if ($latestEditSequence) {
                                         // Update the job's payload with the new EditSequence
                                         $payload = $job->payload;
@@ -286,7 +304,7 @@ class QuickBooksWebService
 
                                         event(new QuickBooksLogEvent(
                                             'info',
-                                            "[QuickBooks] Updated job payload with latest EditSequence and set to pending.",
+                                            '[QuickBooks] Updated job payload with latest EditSequence and set to pending.',
                                             [
                                                 'job_id' => $job->id,
                                                 'new_EditSequence' => $latestEditSequence,
@@ -324,7 +342,7 @@ class QuickBooksWebService
                             $payload = $job ? $job->payload : [];
                             $handler->afterReceive([
                                 'payload' => $payload,
-                                'response'   => $records ?? [],
+                                'response' => $records ?? [],
                             ]);
                         }
                     }
@@ -338,22 +356,26 @@ class QuickBooksWebService
 
                     $records = [];
                     foreach ($rsNode->children() as $ret) {
-                        if (!str_ends_with($ret->getName(), 'Ret')) continue; // Only process *Ret nodes
+                        if (! str_ends_with($ret->getName(), 'Ret')) {
+                            continue;
+                        } // Only process *Ret nodes
                         $data = [];
                         foreach ($ret->children() as $child) {
                             $name = $child->getName();
-                            if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
+                            if (in_array($name, ['TimeCreated', 'TimeModified'])) {
+                                continue;
+                            }
                             // OLD: $data[$name] = (string)$child;
                             // NEW:
                             if ($child->count() > 0) {
                                 $data[$name] = $this->parseXmlNode($child);
                             } else {
-                                $data[$name] = (string)$child;
+                                $data[$name] = (string) $child;
                             }
                         }
                         $data['MetaData'] = [
-                            'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
-                            'LastUpdatedTime' => (string)($ret->TimeModified ?? ''),
+                            'CreateTime' => (string) ($ret->TimeCreated ?? ''),
+                            'LastUpdatedTime' => (string) ($ret->TimeModified ?? ''),
                         ];
                         $data['QBType'] = $ret->getName(); // Optionally add the type
                         $records[] = $data;
@@ -396,10 +418,12 @@ class QuickBooksWebService
             }
 
             $remaining = $sync->remaining();
-            event(new QuickBooksLogEvent('info', '[Step] Remaining jobs in queue: ' . $remaining));
+            event(new QuickBooksLogEvent('info', '[Step] Remaining jobs in queue: '.$remaining));
+
             return $remaining > 0 ? $remaining : 100;
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] receiveResponseXML failed', ['exception' => $e->getMessage()]));
+
             return 100;
         }
     }
@@ -413,9 +437,11 @@ class QuickBooksWebService
             $message = $req->message ?? null;
 
             event(new QuickBooksLogEvent('error', '[Error] QBWC Connection Error', compact('ticket', 'hresult', 'message')));
+
             return ['connectionErrorResult' => 'Error logged'];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] connectionError step failed', ['exception' => $e->getMessage()]));
+
             return ['connectionErrorResult' => 'Error'];
         }
     }
@@ -425,9 +451,11 @@ class QuickBooksWebService
         try {
             event(new QuickBooksLogEvent('info', '[Step] getLastError called by QuickBooks Web Connector.'));
             $ticket = $req->ticket ?? null;
+
             return ['getLastErrorResult' => 'No error'];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] getLastError step failed', ['exception' => $e->getMessage()]));
+
             return ['getLastErrorResult' => 'Error'];
         }
     }
@@ -437,9 +465,11 @@ class QuickBooksWebService
         try {
             event(new QuickBooksLogEvent('info', '[Step] Closing connection with QuickBooks Web Connector.'));
             $ticket = $req->ticket ?? null;
+
             return ['closeConnectionResult' => 'Session completed successfully!'];
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] closeConnection step failed', ['exception' => $e->getMessage()]));
+
             return ['closeConnectionResult' => 'Error'];
         }
     }
@@ -454,9 +484,10 @@ class QuickBooksWebService
                 // Recursively parse child nodes
                 $result[$name] = $this->parseXmlNode($child);
             } else {
-                $result[$name] = (string)$child;
+                $result[$name] = (string) $child;
             }
         }
+
         return $result;
     }
 }

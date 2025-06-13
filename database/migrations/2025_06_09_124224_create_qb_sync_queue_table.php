@@ -19,17 +19,16 @@ return new class extends Migration
             $table->string('action')->default('add');
             $table->string('group')->nullable();          // e.g. 'high-priority', 'batch-job'
             $table->json('payload')->nullable();          // whatever data you need to pass
-             $table->timestamp('queued_at')->useCurrent();
+            $table->timestamp('queued_at')->useCurrent();
             $table->timestamp('available_at')->nullable(); // if you want to delay
 
             // NEW: track state and result
             $table->string('status')->default('pending')
-                  ->comment('pending, processing, completed, error');
+                ->comment('pending, processing, completed, error');
             $table->text('result')->nullable();
             $table->timestamp('processed_at')->nullable();
 
             $table->timestamps();
-
 
             $table->index(['available_at', 'priority']);
             $table->index(['entity_type',   'entity_id']);

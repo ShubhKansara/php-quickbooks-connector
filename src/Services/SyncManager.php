@@ -4,8 +4,8 @@ namespace ShubhKansara\PhpQuickbooksConnector\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
 use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
+use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
 
 class SyncManager
 {
@@ -16,23 +16,23 @@ class SyncManager
     /**
      * Enqueue an entity for sync.
      */
-
     public function enqueue(string $entityType, int $entityId, string $action, array $payload = [], int $priority = 10, ?string $group = null): ?QbSyncQueue
     {
         try {
             return QbSyncQueue::create([
-                'entity_type'   => $entityType,
-                'entity_id'     => $entityId,
-                'action'        => $action,
-                'payload'       => $payload,
-                'group'         => $group,
-                'priority'      => $priority,
-                'status'        => 'pending',
-                'queued_at'     => Carbon::now(),
-                'available_at'  => Carbon::now(),  // you can delay if needed
+                'entity_type' => $entityType,
+                'entity_id' => $entityId,
+                'action' => $action,
+                'payload' => $payload,
+                'group' => $group,
+                'priority' => $priority,
+                'status' => 'pending',
+                'queued_at' => Carbon::now(),
+                'available_at' => Carbon::now(),  // you can delay if needed
             ]);
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', 'SyncManager enqueue error', ['exception' => $e->getMessage()]));
+
             return null;
         }
     }
@@ -40,7 +40,6 @@ class SyncManager
     /**
      * Grab the next pending job ( only those due now ), highest priority first.
      */
-
     public function nextJob(): ?QbSyncQueue
     {
         try {
@@ -66,6 +65,7 @@ class SyncManager
             });
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', 'SyncManager nextJob error', ['exception' => $e->getMessage()]));
+
             return null;
         }
     }
@@ -73,14 +73,13 @@ class SyncManager
     /**
      * Mark a job as “in progress” so it won’t be picked up again.
      */
-
     public function markStarted(QbSyncQueue $job): void
     {
         try {
             $job->update([
-                'status'       => 'processing',
+                'status' => 'processing',
                 'processed_at' => null,
-                'result'       => null,
+                'result' => null,
             ]);
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', 'SyncManager markStarted error', ['exception' => $e->getMessage(), 'job_id' => $job->id]));
@@ -90,14 +89,13 @@ class SyncManager
     /**
      * Mark that job as processed ( success or error ).
      */
-
     public function markProcessed(QbSyncQueue $job, bool $success, ?string $result = null): void
     {
         try {
             $job->update([
-                'status'       => $success ? 'completed' : 'error',
+                'status' => $success ? 'completed' : 'error',
                 'processed_at' => now(),
-                'result'       => $result,
+                'result' => $result,
             ]);
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', 'SyncManager markProcessed error', ['exception' => $e->getMessage(), 'job_id' => $job->id]));
@@ -107,13 +105,13 @@ class SyncManager
     /**
      * How many jobs remain ( pending or in‐progress ) so QBWC knows to loop.
      */
-
     public function remaining(): int
     {
         try {
             return QbSyncQueue::whereIn('status', ['pending', 'processing'])->count();
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', 'SyncManager remaining error', ['exception' => $e->getMessage()]));
+
             return 0;
         }
     }

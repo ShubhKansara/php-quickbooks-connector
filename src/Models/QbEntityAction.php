@@ -12,7 +12,7 @@ class QbEntityAction extends Model
         'request_template',
         'response_fields',
         'handler_class',
-        'active'
+        'active',
     ];
 
     protected $casts = [

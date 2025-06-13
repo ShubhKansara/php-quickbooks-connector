@@ -1,14 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QbEntityController;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QuickBooksController;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncMonitorController;
-use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QbEntityController;
 
 Route::get('qbwc', function () {
     // Serve the WSDL file
     return response()->file(
-        __DIR__ . '/../src/Wsdl/QuickBooksConnector.wsdl',
+        __DIR__.'/../src/Wsdl/QuickBooksConnector.wsdl',
         ['Content-Type' => 'text/xml']
     );
 });

@@ -21,7 +21,7 @@ class QuickBooksController extends Controller
         ));
 
         // 2) dispatch to your SOAP service
-        $wsdl = __DIR__ . '/../../Wsdl/QuickBooksConnector.wsdl';
+        $wsdl = __DIR__.'/../../Wsdl/QuickBooksConnector.wsdl';
 
         $server = new SoapServer($wsdl, [
             'cache_wsdl' => WSDL_CACHE_NONE,
