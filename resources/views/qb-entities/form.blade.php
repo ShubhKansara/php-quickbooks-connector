@@ -35,9 +35,13 @@
                     <button type="button" class="remove-action text-red-600 hover:text-red-800 font-bold">Remove</button>
                 </div>
             </div>
-            <div class="mb-2">
+            <div class="mb-2 relative">
                 <label class="block font-semibold mb-1">Request Template (QBXML)</label>
-                <textarea name="actions[{{ $i }}][request_template]" class="w-full border rounded px-2 py-1" rows="3" required>{{ $action['request_template'] ?? '' }}</textarea>
+                <div class="monaco-qbxml-editor" id="monaco-qbxml-editor-{{ $i }}" style="height: 300px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <textarea name="actions[{{ $i }}][request_template]" id="qbxml-textarea-{{ $i }}" class="hidden">{{ $action['request_template'] ?? '' }}</textarea>
+                <small class="text-gray-500 block mt-1">
+                    Use variables like <code>&#123;&#123; $Name &#125;&#125;</code>, <code>&#123;&#123; $Phone &#125;&#125;</code> etc. in your QBXML.
+                </small>
             </div>
             <div>
                 <label class="block font-semibold mb-1">Response Fields (JSON)</label>
@@ -48,7 +52,8 @@
 </div>
 <button type="button" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" id="add-action">Add Action</button>
 
-@push('scripts')
+<!-- Monaco Editor CDN -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     let actionIndex = {{ count($actions) }};
@@ -72,9 +77,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     <button type="button" class="remove-action text-red-600 hover:text-red-800 font-bold">Remove</button>
                 </div>
             </div>
-            <div class="mb-2">
+            <div class="mb-2 relative">
                 <label class="block font-semibold mb-1">Request Template (QBXML)</label>
-                <textarea name="actions[\${actionIndex}][request_template]" class="w-full border rounded px-2 py-1" rows="3" required></textarea>
+                <div class="monaco-qbxml-editor" id="monaco-qbxml-editor-{{ $i }}" style="height: 300px; border: 1px solid #ccc; border-radius: 4px;"></div>
+                <textarea name="actions[\${actionIndex}][request_template]" id="qbxml-textarea-\${actionIndex}" class="hidden"></textarea>
+                <small class="text-gray-500 block mt-1">
+                    Use variables like <code>&#123;&#123; $Name &#125;&#125;</code>, <code>&#123;&#123; $Phone &#125;&#125;</code> etc. in your QBXML.
+                </small>
             </div>
             <div>
                 <label class="block font-semibold mb-1">Response Fields (JSON)</label>
@@ -91,6 +100,44 @@ document.addEventListener('DOMContentLoaded', function () {
             e.target.closest('.action-block').remove();
         }
     });
+
+    // Monaco Editor for each QBXML template
+    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }});
+    let monacoEditors = [];
+    require(['vs/editor/editor.main'], function () {
+        document.querySelectorAll('.monaco-qbxml-editor').forEach(function(editorDiv, idx) {
+            let textarea = document.getElementById('qbxml-textarea-' + idx);
+            let editor = monaco.editor.create(editorDiv, {
+                value: textarea.value,
+                language: 'xml',
+                theme: 'vs-dark',
+                fontSize: 15,
+                minimap: { enabled: false },
+                lineNumbers: "on",
+                wordWrap: "on"
+            });
+            monacoEditors.push(editor);
+
+            // Sync Monaco content to textarea before form submit
+            editorDiv.closest('form').addEventListener('submit', function() {
+                textarea.value = editor.getValue();
+            });
+        });
+    });
+
 });
 </script>
-@endpush
+
+<style>
+.fullscreen-monaco {
+    position: fixed !important;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80vw !important;
+    height: 80vh !important;
+    z-index: 9999;
+    background: #1e1e1e;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+</style>

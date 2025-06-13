@@ -20,6 +20,7 @@ Route::prefix('admin/quickbooks/sync-monitor')->group(function () {
     Route::get('/logs', [\ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncLogController::class, 'index'])
         ->name('qb.sync.monitor.logs');
     Route::get('/{id}', [SyncMonitorController::class, 'show'])->name('qb.sync.monitor.show');
+    Route::post('/{id}/restart', [\ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncMonitorController::class, 'restart'])->name('qb.sync.monitor.restart');
 });
 
 Route::prefix('admin/quickbooks')->group(function () {

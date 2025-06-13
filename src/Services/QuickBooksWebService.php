@@ -10,6 +10,7 @@ use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbEntity;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Log;
 use SoapVar;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbEntityAction;
 
@@ -109,8 +110,16 @@ class QuickBooksWebService
                     ->where('active', true)
                     ->firstOrFail();
 
-                // Render QBXML by replacing {{placeholders}} in $entityConfig->request_template with $job->payload
-                $qbxml = Blade::render($entityConfig->request_template, $job->payload ?? []);
+                // Extract payload keys as variables for Blade
+                $vars = $job->payload ?? [];
+                $qbxml = Blade::render($entityConfig->request_template, $vars);
+
+                event(new QuickBooksLogEvent('info', 'Generated QBXML for job', [
+                    'entity' => $job->entity_type,
+                    'action' => $job->action,
+                    'job_id' => $job->id,
+                    'qbxml' => $qbxml,
+                ]));
 
                 // Optionally call a custom handler:
                 if ($entityConfig->handler_class) {
@@ -132,7 +141,7 @@ class QuickBooksWebService
                         </sendRequestXMLResponse>
                         XML;
 
-                return new \SoapVar($wrapper, XSD_ANYXML);
+                return new SoapVar($wrapper, XSD_ANYXML);
             }
 
             // 2) Otherwise fallback to your pull logic (ItemQueryRq / CustomerQueryRq, etc.)
@@ -142,7 +151,7 @@ class QuickBooksWebService
               <sendRequestXMLResult></sendRequestXMLResult>
             </sendRequestXMLResponse>
             EOX;
-            return new \SoapVar($done, XSD_ANYXML);
+            return new SoapVar($done, XSD_ANYXML);
         } catch (\Throwable $e) {
             event(new QuickBooksLogEvent('error', '[Error] sendRequestXML failed', ['exception' => $e->getMessage()]));
             $errorXml = <<<EOX
@@ -150,7 +159,7 @@ class QuickBooksWebService
               <sendRequestXMLResult>Error: {$e->getMessage()}</sendRequestXMLResult>
             </sendRequestXMLResponse>
             EOX;
-            return new \SoapVar($errorXml, XSD_ANYXML);
+            return new SoapVar($errorXml, XSD_ANYXML);
         }
     }
 
@@ -208,23 +217,66 @@ class QuickBooksWebService
                     $job = QbSyncQueue::where('status', 'processing')->oldest('processed_at')->first();
 
                     $entity = substr($tag, 0, -5);
-                    $method = "process{$entity}AddResponse";
 
-                    try {
-                        if (method_exists($connector, $method)) {
-                            $result = $connector->$method($response);
-                            event(new QuickBooksLogEvent('info', "[Success] Processed {$entity}AddResponse.", ['result' => $result, 'job_id' => $job->id ?? null]));
-                        } else {
-                            event(new QuickBooksLogEvent('warning', "[Warning] No AddResponse method for {$entity}."));
-                            $result = null;
+
+                    $records = [];
+                    foreach ($rsNode->children() as $ret) {
+                        if (!str_ends_with($ret->getName(), 'Ret')) continue; // Only process *Ret nodes
+                        $data = [];
+                        foreach ($ret->children() as $child) {
+                            $name = $child->getName();
+                            if (in_array($name, ['TimeCreated', 'TimeModified'])) continue;
+                            // OLD: $data[$name] = (string)$child;
+                            // NEW:
+                            if ($child->count() > 0) {
+                                $data[$name] = $this->parseXmlNode($child);
+                            } else {
+                                $data[$name] = (string)$child;
+                            }
                         }
-                        if ($job) {
-                            $sync->markProcessed($job, true, json_encode($result));
-                        }
-                    } catch (\Throwable $e) {
-                        event(new QuickBooksLogEvent('error', "[Error] Exception in {$method}: " . $e->getMessage(), ['exception' => $e]));
-                        if ($job) {
-                            $sync->markProcessed($job, false, $e->getMessage());
+                        $data['MetaData'] = [
+                            'CreateTime'      => (string)($ret->TimeCreated  ?? ''),
+                            'LastUpdatedTime' => (string)($ret->TimeModified ?? ''),
+                        ];
+                        $data['QBType'] = $ret->getName(); // Optionally add the type
+                        $records[] = $data;
+                    }
+                    event(new QuickBooksEntitySynced($entity, $records));
+                    event(new QuickBooksLogEvent('info', '[Step] Parsed records from QuickBooks.', [
+                        'entity' => $entity,
+                        'count' => count($records),
+                        'sample' => $records[0] ?? null,
+                    ]));
+
+                    // --- Mark the job as processed for Query jobs ---
+                    $job = QbSyncQueue::where('status', 'processing')->oldest('processed_at')->first();
+                    if ($job) {
+                        $sync->markProcessed($job, true, json_encode($records));
+                    }
+
+                    $session = QbSyncSession::first();
+                    if ($session) {
+                        $session->update(['last_pull_at' => now()]);
+                    } else {
+                        QbSyncSession::create(['last_pull_at' => now()]);
+                    }
+                    event(new QuickBooksLogEvent('info', "[Success] Processed {$entity}QueryRs.", ['entity' => $entity]));
+
+                    $entityConfig = QbEntityAction::whereHas('entity', function ($q) use ($entity) {
+                        $q->where('name', $entity)->where('active', true);
+                    })
+                        ->where('action', $job->action ?? 'sync')
+                        ->where('active', true)
+                        ->first();
+
+                    if ($entityConfig && $entityConfig->handler_class) {
+                        $handler = app($entityConfig->handler_class);
+                        if (method_exists($handler, 'afterReceive')) {
+                            $payload = $job ? $job->payload : [];
+                            $handler->afterReceive([
+                                'payload' => $payload,
+                                'response'   => $records ?? [],
+                            ]);
                         }
                     }
                 }

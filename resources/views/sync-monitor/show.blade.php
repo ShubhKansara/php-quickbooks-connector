@@ -30,5 +30,12 @@
 {{ $prettyResult ?? $result }}
     </pre>
     <a href="{{ route('qb.sync.monitor') }}">Back to list</a>
+        <form action="{{ route('qb.sync.monitor.restart', $job->id) }}" method="POST" class="inline-block ml-4">
+            @csrf
+            <button type="submit" class="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600"
+                onclick="return confirm('Are you sure you want to restart this job?')">
+                Restart Job
+            </button>
+        </form>
 </div>
 @endsection

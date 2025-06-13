@@ -40,4 +40,22 @@ class SyncMonitorController extends \App\Http\Controllers\Controller {
         $job = QbSyncQueue::findOrFail( $id );
         return view( 'php-quickbooks::sync-monitor.show', compact( 'job' ) );
     }
+
+    public function restart($id)
+    {
+        $job = QbSyncQueue::findOrFail($id);
+
+        // if ($job->status !== 'error') {
+        //     return redirect()->back()->with('error', 'Only jobs in error state can be restarted.');
+        // }
+
+        $job->status = 'pending';
+        $job->processed_at = null;
+        $job->result = null;
+        $job->save();
+
+        // Optionally: dispatch the job again if needed
+
+        return redirect()->route('qb.sync.monitor.show', $job->id)->with('success', 'Job restarted successfully.');
+    }
 }
