@@ -35,14 +35,16 @@ class QbEntityController extends Controller
                 'active' => $request->input('active', true),
             ]);
 
-            foreach ($request->actions as &$action) {
+            $actions = $request->actions;
+            foreach ($actions as &$action) {
                 if ($request->has('generate_handler')) {
                     $handlerClass = $this->generateHandlerClass($entity->name, $action['action']);
                     $action['handler_class'] = $handlerClass;
                 }
             }
+            unset($action); // break the reference
 
-            $this->upsertActions($entity, $request->actions);
+            $this->upsertActions($entity, $actions);
 
             DB::commit();
 

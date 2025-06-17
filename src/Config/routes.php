@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QbEntityController;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QuickBooksController;
+use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\QwcController;
 use ShubhKansara\PhpQuickbooksConnector\Http\Controllers\SyncMonitorController;
 
 Route::get('qbwc', function () {
@@ -30,3 +31,8 @@ Route::prefix('admin/quickbooks')->group(function () {
     Route::resource('qb-entities', QbEntityController::class);
     Route::get('qb-entities/{qb_entity}/edit', [QbEntityController::class, 'edit'])->name('qb-entities.edit');
 });
+
+Route::get('api/admin/qwc-files', [QwcController::class, 'index']);
+Route::post('api/admin/qwc-files', [QwcController::class, 'create']);
+Route::get('api/admin/qwc-files/{id}/download', [QwcController::class, 'download']);
+Route::post('api/admin/qwc-files/{id}/toggle', [QwcController::class, 'toggle']);

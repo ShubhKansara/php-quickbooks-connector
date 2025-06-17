@@ -9,6 +9,7 @@ use ShubhKansara\PhpQuickbooksConnector\Events\QuickBooksLogEvent;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbEntityAction;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncQueue;
 use ShubhKansara\PhpQuickbooksConnector\Models\QbSyncSession;
+use ShubhKansara\PhpQuickbooksConnector\Models\QwcFile;
 use SoapVar;
 
 class QuickBooksWebService
@@ -55,10 +56,11 @@ class QuickBooksWebService
 
             $user = $req->strUserName;
             $pass = $req->strPassword;
-            $configUsername = config('php-quickbooks.username');
-            $configPassword = config('php-quickbooks.password');
 
-            if ($user === $configUsername && $pass === $configPassword) {
+            // Fetch the enabled QWC file
+            $qwc = QwcFile::where('enabled', true)->first();
+
+            if ($qwc && $user === $qwc->username && $pass === $qwc->password) {
                 $ticket = session()->getId();
                 event(new QuickBooksLogEvent('info', '[Success] Authentication successful', ['user' => $user]));
 

@@ -1,9 +1,11 @@
-{{-- filepath: c:\xampp\htdocs\b2b_cf_backend\packages\ShubhKansara\php-quickbooks-connector\resources\views\qb-entities\form.blade.php --}}
+
+ {{-- filepath: resources/views/qb-entities/form.blade.php --}}
 @csrf
 <div class="mb-6">
     <label for="name" class="block font-semibold mb-1">Entity Name</label>
     <input type="text" name="name" id="name" class="w-full border rounded px-3 py-2" value="{{ old('name', $qbEntity->name ?? '') }}" required>
 </div>
+
 <div class="mb-6 flex items-center space-x-2">
     <input type="checkbox" name="active" id="active" value="1" {{ old('active', $qbEntity->active ?? true) ? 'checked' : '' }}>
     <label for="active" class="font-semibold">Active</label>
@@ -18,20 +20,24 @@
     @foreach($actions as $i => $action)
         <div class="bg-white rounded shadow p-4 action-block relative">
             <input type="hidden" name="actions[{{ $i }}][id]" value="{{ $action['id'] ?? '' }}">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-2">
                 <div>
                     <label class="block font-semibold mb-1">Action</label>
                     <input type="text" name="actions[{{ $i }}][action]" class="w-full border rounded px-2 py-1" value="{{ $action['action'] ?? '' }}" required>
                 </div>
                 <div>
+                    <label class="block font-semibold mb-1">Use Handler?</label>
+                    <input type="checkbox" class="use-handler-toggle" data-index="{{ $i }}" {{ isset($action['handler_class']) ? 'checked' : '' }}>
+                </div>
+                <div class="handler-input" id="handler-input-{{ $i }}" style="{{ isset($action['handler_class']) ? '' : 'display: none;' }}">
                     <label class="block font-semibold mb-1">Handler Class</label>
                     <input type="text" name="actions[{{ $i }}][handler_class]" class="w-full border rounded px-2 py-1" value="{{ $action['handler_class'] ?? '' }}">
                 </div>
-                <div class="flex items-center space-x-2 mt-6 md:mt-0">
+                <div class="flex items-center space-x-2">
                     <input type="checkbox" name="actions[{{ $i }}][active]" value="1" {{ ($action['active'] ?? true) ? 'checked' : '' }}>
                     <label class="font-semibold">Active</label>
                 </div>
-                <div class="flex items-center justify-end mt-6 md:mt-0">
+                <div class="flex items-center justify-end">
                     <button type="button" class="remove-action text-red-600 hover:text-red-800 font-bold">Remove</button>
                 </div>
             </div>
@@ -58,36 +64,41 @@
 document.addEventListener('DOMContentLoaded', function () {
     let actionIndex = {{ count($actions) }};
     document.getElementById('add-action').addEventListener('click', function () {
-        let html = `
-        <div class="bg-white rounded shadow p-4 action-block relative mt-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+        const html = `
+        <div class=\"bg-white rounded shadow p-4 action-block relative mt-4\">
+            <div class=\"grid grid-cols-1 md:grid-cols-5 gap-4 mb-2\">
                 <div>
-                    <label class="block font-semibold mb-1">Action</label>
-                    <input type="text" name="actions[\${actionIndex}][action]" class="w-full border rounded px-2 py-1" required>
+                    <label class=\"block font-semibold mb-1\">Action</label>
+                    <input type=\"text\" name=\"actions[\${actionIndex}][action]\" class=\"w-full border rounded px-2 py-1\" required>
                 </div>
                 <div>
-                    <label class="block font-semibold mb-1">Handler Class</label>
-                    <input type="text" name="actions[\${actionIndex}][handler_class]" class="w-full border rounded px-2 py-1">
+                    <label class=\"block font-semibold mb-1\">Use Handler?</label>
+                    <input type=\"checkbox\" class=\"use-handler-toggle\" data-index=\"\${actionIndex}\">
                 </div>
-                <div class="flex items-center space-x-2 mt-6 md:mt-0">
-                    <input type="checkbox" name="actions[\${actionIndex}][active]" value="1" checked>
-                    <label class="font-semibold">Active</label>
+                <div class=\"handler-input\" id=\"handler-input-\${actionIndex}\" style=\"display: none;\">
+                    <label class=\"block font-semibold mb-1\">Handler Class</label>
+                    <input type=\"text\" name=\"actions[\${actionIndex}][handler_class]\" class=\"w-full border rounded px-2 py-1\">
                 </div>
-                <div class="flex items-center justify-end mt-6 md:mt-0">
-                    <button type="button" class="remove-action text-red-600 hover:text-red-800 font-bold">Remove</button>
+                <div class=\"flex items-center space-x-2\">
+                    <input type=\"checkbox\" name=\"actions[\${actionIndex}][active]\" value=\"1\" checked>
+                    <label class=\"font-semibold\">Active</label>
+                </div>
+                <div class=\"flex items-center justify-end\">
+                    <button type=\"button\" class=\"remove-action text-red-600 hover:text-red-800 font-bold\">Remove</button>
                 </div>
             </div>
-            <div class="mb-2 relative">
-                <label class="block font-semibold mb-1">Request Template (QBXML)</label>
-                <div class="monaco-qbxml-editor" id="monaco-qbxml-editor-{{ $i }}" style="height: 300px; border: 1px solid #ccc; border-radius: 4px;"></div>
-                <textarea name="actions[\${actionIndex}][request_template]" id="qbxml-textarea-\${actionIndex}" class="hidden"></textarea>
-                <small class="text-gray-500 block mt-1">
-                    Use variables like <code>&#123;&#123; $Name &#125;&#125;</code>, <code>&#123;&#123; $Phone &#125;&#125;</code> etc. in your QBXML.
+            <div class=\"mb-2 relative\">
+                <label class=\"block font-semibold mb-1\">Request Template (QBXML)</label>
+                <div class=\"monaco-qbxml-editor\" id=\"monaco-qbxml-editor-\${actionIndex}\" style=\"height: 300px; border: 1px solid #ccc; border-radius: 4px;\"></div>
+                <textarea name=\"actions[\${actionIndex}][request_template]\" id=\"qbxml-textarea-\${actionIndex}\" class=\"hidden\"></textarea>
+                <small class=\"text-gray-500 block mt-1\">
+                                        Use variables like <code>&#123;&#123; \$Name &#125;&#125;</code>, <code>&#123;&#123; \$Phone &#125;&#125;</code> etc. in your QBXML.
+
                 </small>
             </div>
             <div>
-                <label class="block font-semibold mb-1">Response Fields (JSON)</label>
-                <textarea name="actions[\${actionIndex}][response_fields]" class="w-full border rounded px-2 py-1" rows="2"></textarea>
+                <label class=\"block font-semibold mb-1\">Response Fields (JSON)</label>
+                <textarea name=\"actions[\${actionIndex}][response_fields]\" class=\"w-full border rounded px-2 py-1\" rows=\"2\"></textarea>
             </div>
         </div>
         `;
@@ -117,14 +128,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 wordWrap: "on"
             });
             monacoEditors.push(editor);
-
-            // Sync Monaco content to textarea before form submit
             editorDiv.closest('form').addEventListener('submit', function() {
                 textarea.value = editor.getValue();
             });
         });
     });
 
+    // Show/hide handler class input
+    document.querySelectorAll('.use-handler-toggle').forEach(function (toggle) {
+        toggle.addEventListener('change', function () {
+            const idx = this.getAttribute('data-index');
+            const input = document.getElementById(`handler-input-${idx}`);
+            input.style.display = this.checked ? 'block' : 'none';
+        });
+    });
 });
 </script>
 
